@@ -8,39 +8,40 @@ const stats = require("./statsModel");
 
 const vData = require("./videoModel");
 
-
 const mongoose = require("mongoose");
 const mongoString = process.env.DATABASE_URL;
 
-mongoose.connect(mongoString);
-const database = mongoose.connection;
+// mongoose.connect(mongoString);
+// const database = mongoose.connection;
 
-database.on("error", (error) => {
-  console.log(error);
-});
+const PORT = process.env.PORT || 3000;
 
-database.once("connected", () => {
-  console.log("Database Connected");
-});
+const connectDB = async () => {
+  try {
+    mongoose.set("strictQuery", false);
+    const conn = await mongoose.connect(process.env.DATABASE_URL);
+    console.log(`MongoDB Connected: ${conn.connection.host}`);
+  } catch (error) {
+    console.log(error);
+    process.exit(1);
+  }
+};
 const app = express();
 
 app.use(express.json());
 
-app.listen(3001, () => {
-  console.log(`Server Started at ${3000}`);
-});
-
-
 app.get("/fetchData", async (req, res) => {
-
   const all = await vData.find({});
 
-  console.log(all.map((val)=> val.videoID).toString());
+  console.log(all.map((val) => val.videoID).toString());
 
   // Make a request for a user with a given ID
   axios
     .get(
-      "https://www.googleapis.com/youtube/v3/videos?part=contentDetails,statistics,snippet&id="+all.map((val)=> val.videoID).toString()+"&key="+process.env.API_KEY
+      "https://www.googleapis.com/youtube/v3/videos?part=contentDetails,statistics,snippet&id=" +
+        all.map((val) => val.videoID).toString() +
+        "&key=" +
+        process.env.API_KEY
     )
     .then(function (response) {
       // handle success
@@ -79,8 +80,14 @@ app.get("/stopFetch", (req, res) => {
 });
 
 app.get("/setVideo", (req, res) => {
-
-  const data = new vData({date: new Date().getTime(), videoID: req.query.id})
+  const data = new vData({ date: new Date().getTime(), videoID: req.query.id });
   data.save();
   res.status(200).json(req.query);
+});
+
+//Connect to the database before listening
+connectDB().then(() => {
+  app.listen(PORT, () => {
+    console.log("listening for requests");
+  });
 });
